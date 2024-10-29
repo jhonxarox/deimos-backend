@@ -23,11 +23,20 @@ type Video struct {
 	User      string `json:"user"`
 }
 
+// isValidThumbnailURL checks if the thumbnail URL is a valid HTTP/HTTPS URL
+func isValidThumbnailURL(thumbnail string) bool {
+	parsedURL, err := url.Parse(thumbnail)
+	if err != nil {
+		return false
+	}
+	return (parsedURL.Scheme == "http" || parsedURL.Scheme == "https") && !strings.HasPrefix(thumbnail, "data:image")
+}
+
 // SearchTikTokVideos with pagination
 func SearchTikTokVideos(query string, page int) ([]Video, error) {
 	var videos []Video
 	itemsPerPage := 6
-	scrollsNeeded := (page * itemsPerPage) / itemsPerPage // Number of scrolls needed to load required items
+	scrollsNeeded := page // Number of scrolls needed based on the page
 
 	// Create context for chromedp
 	ctx, cancel := chromedp.NewContext(context.Background())
@@ -38,7 +47,7 @@ func SearchTikTokVideos(query string, page int) ([]Video, error) {
 	tiktokSearchURL := fmt.Sprintf("https://www.tiktok.com/search?q=%s", query)
 
 	// Navigate and scroll to load more content
-	for i := 0; i <= scrollsNeeded; i++ {
+	for i := 0; i < scrollsNeeded; i++ {
 		err := chromedp.Run(ctx,
 			chromedp.Navigate(tiktokSearchURL),
 			chromedp.WaitVisible(`div[data-e2e="search_top-item-list"]`, chromedp.ByQuery),
@@ -50,56 +59,50 @@ func SearchTikTokVideos(query string, page int) ([]Video, error) {
 			log.Printf("Error while scrolling: %v", err)
 			return nil, err
 		}
-	}
 
-	// Parse the loaded HTML with goquery
-	doc, err := goquery.NewDocumentFromReader(strings.NewReader(htmlContent))
-	if err != nil {
-		log.Printf("Failed to parse HTML: %v", err)
-		return nil, err
-	}
-
-	// Extract video data from HTML
-	doc.Find(`div[data-e2e="search_top-item"]`).Each(func(i int, s *goquery.Selection) {
-		// Stop once we have enough items for the page
-		if len(videos) >= page*itemsPerPage {
-			return
+		// Parse the loaded HTML with goquery
+		doc, err := goquery.NewDocumentFromReader(strings.NewReader(htmlContent))
+		if err != nil {
+			log.Printf("Failed to parse HTML: %v", err)
+			return nil, err
 		}
 
-		videoLink, exists := s.Find("a").Attr("href")
-		if !exists {
-			return
-		}
+		// Extract video data from HTML
+		doc.Find(`div[data-e2e="search_top-item"]`).Each(func(i int, s *goquery.Selection) {
+			// Stop once we have enough items for the page
+			if len(videos) >= page*itemsPerPage {
+				return
+			}
 
-		if !strings.HasPrefix(videoLink, "http") {
-			videoLink = "https://www.tiktok.com" + videoLink
-		}
+			videoLink, exists := s.Find("a").Attr("href")
+			if !exists {
+				return
+			}
 
-		thumbnail, exists := s.Find("img").Attr("src")
-		if !exists {
-			return
-		}
+			if !strings.HasPrefix(videoLink, "http") {
+				videoLink = "https://www.tiktok.com" + videoLink
+			}
 
-		// Check if the thumbnail is a valid URL
-		if _, err := url.ParseRequestURI(thumbnail); err != nil {
-			log.Printf("Invalid thumbnail URL: %s", thumbnail)
-			return // Skip this video if the thumbnail is not a valid URL
-		}
+			thumbnail, exists := s.Find("img").Attr("src")
+			if !exists || !isValidThumbnailURL(thumbnail) {
+				return // Skip this video if the thumbnail is not a valid HTTP/HTTPS URL
+			}
 
-		descSection := s.Next()
-		caption := descSection.Find(`div[data-e2e="search-card-video-caption"]`).Text()
-		user, exists := descSection.Find(`a[data-e2e="search-card-user-link"]`).Attr("href")
-		if !exists {
-			return
-		}
+			descSection := s.Next()
+			caption := descSection.Find(`div[data-e2e="search-card-video-caption"]`).Text()
+			user, exists := descSection.Find(`a[data-e2e="search-card-user-link"]`).Attr("href")
+			if !exists {
+				return
+			}
 
-		videos = append(videos, Video{
-			URL:       videoLink,
-			Thumbnail: thumbnail,
-			Caption:   caption,
-			User:      "https://www.tiktok.com" + user,
+			videos = append(videos, Video{
+				URL:       videoLink,
+				Thumbnail: thumbnail,
+				Caption:   caption,
+				User:      "https://www.tiktok.com" + user,
+			})
 		})
-	})
+	}
 
 	// Calculate the start and end index for pagination
 	start := (page - 1) * itemsPerPage
