@@ -4,14 +4,31 @@ import (
 	"deimosbackend/services"
 	"log"
 	"net/http"
-	"os"
 	"strconv"
 
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
+	"github.com/chromedp/chromedp"
 )
 
+var allocatorCtx context.Context
+var allocatorCancel context.CancelFunc
+
+func init() {
+	// Create a persistent chromedp allocator context
+	allocatorCtx, allocatorCancel = chromedp.NewExecAllocator(context.Background(),
+		append(chromedp.DefaultExecAllocatorOptions[:],
+			chromedp.Flag("headless", true),
+			chromedp.Flag("disable-gpu", true),
+			chromedp.Flag("no-sandbox", true),
+			chromedp.Flag("disable-dev-shm-usage", true),
+		)...,
+	)
+}
+
 func main() {
+	defer allocatorCancel() // Ensure allocator is cleaned up
+
 	// Initialize a Gin router
 	router := gin.Default()
 
@@ -30,9 +47,10 @@ func main() {
 		}
 
 		// Call SearchTikTokVideos with the query and page
-		videos, err := services.SearchTikTokVideos(query, page)
+		videos, err := services.SearchTikTokVideos(allocatorCtx, query, page)
 		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			log.Printf("Error during video search: %v", err)
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch videos"})
 			return
 		}
 		c.JSON(http.StatusOK, gin.H{"videos": videos})
@@ -46,9 +64,10 @@ func main() {
 			return
 		}
 
-		videoUrl, err := services.GetVideoUrl(url)
+		videoUrl, err := services.GetVideoUrl(allocatorCtx, url)
 		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			log.Printf("Error fetching video URL: %v", err)
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch video URL"})
 			return
 		}
 		c.JSON(http.StatusOK, gin.H{"videoUrl": videoUrl})
@@ -64,7 +83,8 @@ func main() {
 
 		videoContent, err := services.ProxyVideoContent(videoUrl)
 		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			log.Printf("Error proxying video content: %v", err)
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to proxy video content"})
 			return
 		}
 
@@ -73,10 +93,5 @@ func main() {
 	})
 
 	// Run the server on port 8080
-	port := os.Getenv("PORT")
-	if port == "" {
-		port = "8080"
-	}
-	log.Printf("Starting server on port %s", port)
-	router.Run(":" + port)
+	router.Run(":8080")
 }
