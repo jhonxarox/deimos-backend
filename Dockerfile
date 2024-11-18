@@ -1,13 +1,18 @@
-# Use the official Go image with the necessary version
-FROM golang:1.23-alpine
+# Use a base Go image with Debian for better compatibility
+FROM golang:1.23-bullseye
 
 # Install necessary dependencies
-RUN apk add --no-cache \
-    gcc \
-    musl-dev \
+RUN apt-get update && apt-get install -y \
     chromium \
-    chromium-chromedriver \
-    libc6-compat
+    chromium-driver \
+    libnss3 \
+    fonts-liberation \
+    libfontconfig1 \
+    wget \
+    ca-certificates \
+    --no-install-recommends && \
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/*
 
 # Set the working directory
 WORKDIR /app
