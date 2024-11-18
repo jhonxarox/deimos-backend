@@ -15,7 +15,6 @@ import (
 	"github.com/chromedp/chromedp"
 )
 
-// Video struct to hold the scraped video information
 type Video struct {
 	URL       string `json:"url"`
 	Thumbnail string `json:"thumbnail"`
@@ -23,7 +22,6 @@ type Video struct {
 	User      string `json:"user"`
 }
 
-// isValidThumbnailURL checks if the thumbnail URL is a valid HTTP/HTTPS URL
 func isValidThumbnailURL(thumbnail string) bool {
 	parsedURL, err := url.Parse(thumbnail)
 	if err != nil {
@@ -42,22 +40,24 @@ func SearchTikTokVideos(ctx context.Context, query string, page int) ([]Video, e
 	defer cancel()
 
 	// Add timeout to the context
-	timeoutCtx, timeoutCancel := context.WithTimeout(chromedpCtx, 30*time.Second)
+	timeoutCtx, timeoutCancel := context.WithTimeout(chromedpCtx, 60*time.Second) // Increased timeout
 	defer timeoutCancel()
 
 	var htmlContent string
 	tiktokSearchURL := fmt.Sprintf("https://www.tiktok.com/search?q=%s", query)
 
 	for i := 0; i < page; i++ {
+		log.Printf("Navigating to TikTok URL: %s", tiktokSearchURL)
+
 		err := chromedp.Run(timeoutCtx,
 			chromedp.Navigate(tiktokSearchURL),
 			chromedp.WaitVisible(`div[data-e2e="search_top-item-list"]`, chromedp.ByQuery),
 			chromedp.ScrollIntoView(`div[data-e2e="search_top-item-list"]`, chromedp.ByQuery),
-			chromedp.Sleep(1*time.Second),
+			chromedp.Sleep(5*time.Second), // Increased sleep for dynamic loading
 			chromedp.OuterHTML("html", &htmlContent),
 		)
 		if err != nil {
-			log.Printf("Error during scraping: %v", err)
+			log.Printf("Scraping error: %v", err)
 			continue
 		}
 
@@ -83,7 +83,6 @@ func SearchTikTokVideos(ctx context.Context, query string, page int) ([]Video, e
 	return videos[start:end], nil
 }
 
-// Helper function to parse video data from HTML content
 func extractVideosFromHTML(htmlContent string) ([]Video, error) {
 	var videos []Video
 	doc, err := goquery.NewDocumentFromReader(strings.NewReader(htmlContent))
@@ -137,7 +136,7 @@ func GetVideoUrl(ctx context.Context, videoPageUrl string) (string, error) {
 
 	err = chromedp.Run(chromedpCtx,
 		chromedp.Navigate(videoPageUrl),
-		chromedp.Sleep(2*time.Second),
+		chromedp.Sleep(5*time.Second),
 		chromedp.OuterHTML("html", &htmlContent),
 	)
 	if err != nil {

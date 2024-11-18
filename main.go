@@ -7,9 +7,9 @@ import (
 	"net/http"
 	"strconv"
 
+	"github.com/chromedp/chromedp"
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
-	"github.com/chromedp/chromedp"
 )
 
 var allocatorCtx context.Context
@@ -51,7 +51,7 @@ func main() {
 		videos, err := services.SearchTikTokVideos(allocatorCtx, query, page)
 		if err != nil {
 			log.Printf("Error during video search: %v", err)
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch videos"})
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch videos", "details": err.Error()})
 			return
 		}
 		c.JSON(http.StatusOK, gin.H{"videos": videos})
@@ -68,7 +68,7 @@ func main() {
 		videoUrl, err := services.GetVideoUrl(allocatorCtx, url)
 		if err != nil {
 			log.Printf("Error fetching video URL: %v", err)
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch video URL"})
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch video URL", "details": err.Error()})
 			return
 		}
 		c.JSON(http.StatusOK, gin.H{"videoUrl": videoUrl})
@@ -85,7 +85,7 @@ func main() {
 		videoContent, err := services.ProxyVideoContent(videoUrl)
 		if err != nil {
 			log.Printf("Error proxying video content: %v", err)
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to proxy video content"})
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to proxy video content", "details": err.Error()})
 			return
 		}
 
