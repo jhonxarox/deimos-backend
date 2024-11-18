@@ -2,7 +2,12 @@
 FROM golang:1.23-alpine
 
 # Install necessary dependencies
-RUN apk add --no-cache gcc musl-dev chromium
+RUN apk add --no-cache \
+    gcc \
+    musl-dev \
+    chromium \
+    chromium-chromedriver \
+    libc6-compat
 
 # Set the working directory
 WORKDIR /app
