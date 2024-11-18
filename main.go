@@ -2,7 +2,9 @@ package main
 
 import (
 	"deimosbackend/services"
+	"log"
 	"net/http"
+	"os"
 	"strconv"
 
 	"github.com/gin-contrib/cors"
@@ -71,5 +73,10 @@ func main() {
 	})
 
 	// Run the server on port 8080
-	router.Run(":8080")
+	port := os.Getenv("PORT")
+	if port == "" {
+		port = "8080"
+	}
+	log.Printf("Starting server on port %s", port)
+	router.Run(":" + port)
 }
