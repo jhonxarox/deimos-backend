@@ -31,7 +31,7 @@ func isValidThumbnailURL(thumbnail string) bool {
 }
 
 // SearchTikTokVideos fetches videos with pagination
-func SearchTikTokVideos(ctx context.Context, query string, page int) ([]Video, error) {
+func SearchTikTokVideos(ctx context.Context, tiktokBaseURL, query string, page int) ([]Video, error) {
 	var videos []Video
 	itemsPerPage := 3
 
@@ -44,7 +44,7 @@ func SearchTikTokVideos(ctx context.Context, query string, page int) ([]Video, e
 	defer timeoutCancel()
 
 	var htmlContent string
-	tiktokSearchURL := fmt.Sprintf("https://www.tiktok.com/search?q=%s", query)
+	tiktokSearchURL := fmt.Sprintf("%s/search?q=%s", tiktokBaseURL, query)
 
 	for i := 0; i < page; i++ {
 		log.Printf("Navigating to TikTok URL: %s", tiktokSearchURL)
@@ -63,7 +63,7 @@ func SearchTikTokVideos(ctx context.Context, query string, page int) ([]Video, e
 		}
 
 		// Parse and extract video data
-		extractedVideos, err := extractVideosFromHTML(htmlContent)
+		extractedVideos, err := extractVideosFromHTML(htmlContent, tiktokBaseURL)
 		if err != nil {
 			log.Printf("Error extracting videos: %v", err)
 			continue
@@ -84,7 +84,7 @@ func SearchTikTokVideos(ctx context.Context, query string, page int) ([]Video, e
 	return videos[start:end], nil
 }
 
-func extractVideosFromHTML(htmlContent string) ([]Video, error) {
+func extractVideosFromHTML(htmlContent string, tiktokBaseURL string) ([]Video, error) {
 	var videos []Video
 	doc, err := goquery.NewDocumentFromReader(strings.NewReader(htmlContent))
 	if err != nil {
@@ -97,7 +97,7 @@ func extractVideosFromHTML(htmlContent string) ([]Video, error) {
 			return
 		}
 		if !strings.HasPrefix(videoLink, "http") {
-			videoLink = "https://www.tiktok.com" + videoLink
+			videoLink = tiktokBaseURL + videoLink
 		}
 
 		thumbnail, exists := s.Find("img").Attr("src")
@@ -116,7 +116,7 @@ func extractVideosFromHTML(htmlContent string) ([]Video, error) {
 			URL:       videoLink,
 			Thumbnail: thumbnail,
 			Caption:   caption,
-			User:      "https://www.tiktok.com" + user,
+			User:      tiktokBaseURL + user,
 		})
 	})
 

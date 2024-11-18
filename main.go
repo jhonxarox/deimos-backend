@@ -5,6 +5,7 @@ import (
 	"deimosbackend/services"
 	"log"
 	"net/http"
+	"os"
 	"strconv"
 
 	"github.com/chromedp/chromedp"
@@ -14,8 +15,15 @@ import (
 
 var allocatorCtx context.Context
 var allocatorCancel context.CancelFunc
+var tiktokBaseURL string
 
 func init() {
+	// Load TikTok base URL from environment
+	tiktokBaseURL = os.Getenv("TIKTOK_BASE_URL")
+	if tiktokBaseURL == "" {
+		tiktokBaseURL = "https://www.tiktok.com" // Default value
+	}
+
 	// Create a persistent chromedp allocator context
 	allocatorCtx, allocatorCancel = chromedp.NewExecAllocator(context.Background(),
 		append(chromedp.DefaultExecAllocatorOptions[:],
@@ -48,7 +56,7 @@ func main() {
 		}
 
 		// Call SearchTikTokVideos with the query and page
-		videos, err := services.SearchTikTokVideos(allocatorCtx, query, page)
+		videos, err := services.SearchTikTokVideos(allocatorCtx, tiktokBaseURL, query, page)
 		if err != nil {
 			log.Printf("Error during video search: %v", err)
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch videos", "details": err.Error()})
