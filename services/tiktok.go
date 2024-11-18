@@ -33,14 +33,14 @@ func isValidThumbnailURL(thumbnail string) bool {
 // SearchTikTokVideos fetches videos with pagination
 func SearchTikTokVideos(ctx context.Context, query string, page int) ([]Video, error) {
 	var videos []Video
-	itemsPerPage := 6
+	itemsPerPage := 3
 
 	// Create a chromedp context for the session
 	chromedpCtx, cancel := chromedp.NewContext(ctx)
 	defer cancel()
 
 	// Add timeout to the context
-	timeoutCtx, timeoutCancel := context.WithTimeout(chromedpCtx, 60*time.Second) // Increased timeout
+	timeoutCtx, timeoutCancel := context.WithTimeout(chromedpCtx, 90*time.Second) // Increased timeout
 	defer timeoutCancel()
 
 	var htmlContent string
@@ -51,9 +51,10 @@ func SearchTikTokVideos(ctx context.Context, query string, page int) ([]Video, e
 
 		err := chromedp.Run(timeoutCtx,
 			chromedp.Navigate(tiktokSearchURL),
+			chromedp.WaitVisible(`body`, chromedp.ByQuery),
 			chromedp.WaitVisible(`div[data-e2e="search_top-item-list"]`, chromedp.ByQuery),
 			chromedp.ScrollIntoView(`div[data-e2e="search_top-item-list"]`, chromedp.ByQuery),
-			chromedp.Sleep(5*time.Second), // Increased sleep for dynamic loading
+			chromedp.Sleep(7*time.Second), // Increased sleep for dynamic loading
 			chromedp.OuterHTML("html", &htmlContent),
 		)
 		if err != nil {
