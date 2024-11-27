@@ -33,14 +33,14 @@ func isValidThumbnailURL(thumbnail string) bool {
 // SearchTikTokVideos fetches videos with pagination
 func SearchTikTokVideos(ctx context.Context, tiktokBaseURL, query string, page int) ([]Video, error) {
 	var videos []Video
-	itemsPerPage := 3
+	itemsPerPage := 6
 
 	// Create a chromedp context for the session
 	chromedpCtx, cancel := chromedp.NewContext(ctx)
 	defer cancel()
 
 	// Add timeout to the context
-	timeoutCtx, timeoutCancel := context.WithTimeout(chromedpCtx, 90*time.Second) // Increased timeout
+	timeoutCtx, timeoutCancel := context.WithTimeout(chromedpCtx, 270*time.Second) // Increased timeout
 	defer timeoutCancel()
 
 	var htmlContent string
