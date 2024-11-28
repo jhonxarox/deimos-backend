@@ -2,6 +2,8 @@ package services
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"io"
@@ -34,6 +36,7 @@ func isValidThumbnailURL(thumbnail string) bool {
 func SearchTikTokVideos(ctx context.Context, tiktokBaseURL, query string, page int) ([]Video, error) {
 	var videos []Video
 	itemsPerPage := 6
+	videoMap := make(map[string]bool) // Map to store unique video hashes
 
 	// Create a chromedp context for the session
 	chromedpCtx, cancel := chromedp.NewContext(ctx)
@@ -69,12 +72,21 @@ func SearchTikTokVideos(ctx context.Context, tiktokBaseURL, query string, page i
 			continue
 		}
 
-		videos = append(videos, extractedVideos...)
+		// Filter out duplicate videos
+		for _, video := range extractedVideos {
+			videoHash := generateVideoHash(video)
+			if !videoMap[videoHash] { // Check if the video hash is already in the map
+				videoMap[videoHash] = true // Mark this video hash as seen
+				videos = append(videos, video)
+			}
+		}
+
 		if len(videos) >= itemsPerPage*page {
 			break
 		}
 	}
 
+	// Paginate results
 	start := (page - 1) * itemsPerPage
 	end := start + itemsPerPage
 	if end > len(videos) {
@@ -82,6 +94,13 @@ func SearchTikTokVideos(ctx context.Context, tiktokBaseURL, query string, page i
 	}
 
 	return videos[start:end], nil
+}
+
+// generateVideoHash creates a unique hash for a video based on its fields.
+func generateVideoHash(video Video) string {
+	input := video.URL + video.Thumbnail + video.Caption
+	hash := sha256.Sum256([]byte(input))
+	return hex.EncodeToString(hash[:])
 }
 
 func extractVideosFromHTML(htmlContent string, tiktokBaseURL string) ([]Video, error) {
